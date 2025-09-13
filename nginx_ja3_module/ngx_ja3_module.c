@@ -5,24 +5,24 @@
 
 #define JA3_BUF_LEN 8192
 
-static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg);
-static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf);
+static int ngx_ja3_client_hello_cb(SSL *ssl, int *al, void *arg);
+static ngx_int_t ngx_ja3_init(ngx_conf_t *cf);
 
-static ngx_http_module_t ngx_http_ja3_module_ctx = {
+static ngx_http_module_t ngx_ja3_module_ctx = {
     NULL,           /* preconfiguration */
-    ngx_http_ja3_init, /* postconfiguration */
+    ngx_ja3_init, /* postconfiguration */
     NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-ngx_module_t ngx_http_ja3_module = {
+ngx_module_t ngx_ja3_module = {
     NGX_MODULE_V1,
-    &ngx_http_ja3_module_ctx,
+    &ngx_ja3_module_ctx,
     NULL,
     NGX_HTTP_MODULE,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NGX_MODULE_V1_PADDING
 };
 
-static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
+static int ngx_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
 {
     // 測試 ja3 
     // 從第三方服務取得自己電腦 curl 的 ja3: curl https://tools.scrapfly.io/api/tls | jq .
@@ -245,7 +245,7 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
     return SSL_CLIENT_HELLO_SUCCESS;
 }
 
-static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf)
+static ngx_int_t ngx_ja3_init(ngx_conf_t *cf)
 {
     // 1. 取得 HTTP 主設定（裡面有所有 server block）
     ngx_http_core_main_conf_t *cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
@@ -264,7 +264,7 @@ static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf)
 
         // 5. 如果有啟用 SSL，註冊 ClientHello callback
         if (ssl_conf && ssl_conf->ssl.ctx) {
-            SSL_CTX_set_client_hello_cb(ssl_conf->ssl.ctx, ngx_http_ja3_client_hello_cb, NULL);
+            SSL_CTX_set_client_hello_cb(ssl_conf->ssl.ctx, ngx_ja3_client_hello_cb, NULL);
         }
     }
     return NGX_OK;
