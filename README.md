@@ -1,4 +1,4 @@
-# ngx_http_ja3_module
+# ngx_ja3_module
 
 本模組為 Nginx/OpenResty 的 JA3 指紋擷取模組，能於 TLS 握手階段即時解析 ClientHello，並輸出 JA3 字串，方便進行 TLS 客戶端指紋辨識。
 
@@ -39,9 +39,32 @@
    - 格式：`TLSVersion,CipherSuites,Extensions,EllipticCurves,ECPointFormats`
 
 ---
+## Quick Start
+```
+git clone https://github.com/Hung-Jia-Jun/nginx-ja3-fingerprint.git
+cd nginx-ja3-fingerprint
+apt update
+apt install -y libpcre3 libpcre3-dev libssl-dev zlib1g-dev wget cmake
+wget https://openresty.org/download/openresty-1.27.1.2.tar.gz
+tar -xf openresty-1.27.1.2.tar.gz
+cd openresty-1.27.1.2
+./configure \
+  --with-http_ssl_module \
+  --with-http_v2_module \
+  --with-debug \
+  --add-dynamic-module=../nginx_ja3_module
+make && make install
+openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/dummy.key -out /tmp/dummy.crt -days 365 -subj "/CN=localhost"
+cd ..
+mkdir -p /var/log/nginx
+cp nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+/usr/local/openresty/nginx/sbin/nginx -t
+/usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
+```
+
 
 ## 編譯與安裝
-
+---
 1. **將本模組原始碼放入 Nginx/OpenResty 原始碼目錄下的 `modules/` 資料夾**
 2. **重新編譯 Nginx/OpenResty 並加上本模組**
    ```bash
@@ -49,12 +72,12 @@
       --with-http_ssl_module \
       --with-http_v2_module \
       --with-http_stub_status_module \
-      --add-dynamic-module=modules/ngx_http_ja3_module
+      --add-dynamic-module=modules/ngx_ja3_module
    make && make install
    ```
 3. **在 nginx.conf 中載入模組**
    ```nginx
-   load_module modules/ngx_http_ja3_module.so;
+   load_module modules/ngx_ja3_module.so;
    ```
 
 ---
@@ -63,7 +86,7 @@
 
 ```nginx
 worker_processes  1;
-load_module modules/ngx_http_ja3_module.so;
+load_module modules/ngx_ja3_module.so;
 
 events {
     worker_connections  1024;
@@ -129,7 +152,7 @@ ECPointFormats: 0-1-2
 ---
 ``` nginx.conf
 worker_processes  1;
-load_module modules/ngx_http_ja3_module.so;
+load_module modules/ngx_ja3_module.so;
 
 events {
     worker_connections  1024;

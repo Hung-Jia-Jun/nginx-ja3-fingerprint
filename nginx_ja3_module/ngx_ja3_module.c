@@ -5,24 +5,24 @@
 
 #define JA3_BUF_LEN 8192
 
-static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg);
-static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf);
+static int ngx_ja3_client_hello_cb(SSL *ssl, int *al, void *arg);
+static ngx_int_t ngx_ja3_init(ngx_conf_t *cf);
 
-static ngx_http_module_t ngx_http_ja3_module_ctx = {
+static ngx_http_module_t ngx_ja3_module_ctx = {
     NULL,           /* preconfiguration */
-    ngx_http_ja3_init, /* postconfiguration */
+    ngx_ja3_init, /* postconfiguration */
     NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-ngx_module_t ngx_http_ja3_module = {
+ngx_module_t ngx_ja3_module = {
     NGX_MODULE_V1,
-    &ngx_http_ja3_module_ctx,
+    &ngx_ja3_module_ctx,
     NULL,
     NGX_HTTP_MODULE,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NGX_MODULE_V1_PADDING
 };
 
-static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
+static int ngx_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
 {
     // 測試 ja3 
     // 從第三方服務取得自己電腦 curl 的 ja3: curl https://tools.scrapfly.io/api/tls | jq .
@@ -94,7 +94,7 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
     char cipher_str[512] = {0};
     if (cipher_data && cipher_len > 1) {
 
-        for(int i=0;i<cipher_len;i+=2){
+        for(size_t i=0;i<cipher_len;i+=2){
             /*
             cs[i] << 8：把第 i 個 byte 左移 8 位，變成高位元組（high byte）。
             | cs[i+1]：用 bitwise OR，把第 i+1 個 byte 放到低位元組（low byte）。
@@ -130,8 +130,8 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
                 strncat(cipher_str, cipher_buf, strlen(cipher_buf));
             }
         }
-        fprintf(stderr, "SSL Version: %s\n", version_str);
-        fprintf(stderr, "Cipher: %s\n", cipher_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "SSL Version: %s", version_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "Cipher: %s", cipher_str);
     }
 
     // 3. Extensions
@@ -162,16 +162,16 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
         // 根據 openssl 文件要求: 當使用 SSL_client_hello_get1_extensions_present 後，需釋放 OpenSSL 分配的記憶體
         OPENSSL_free(ext_types_present);
     }
-    fprintf(stderr, "Extensions: %s\n", ext_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "Extensions: %s", ext_str);
 
     // 若要輸出 sni 資訊，需用下列 curl
     // curl -vk --resolve test:443:127.0.0.1 https://test/
     const unsigned char *sni_data = NULL;
     size_t sni_len = 0;
     if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_server_name, &sni_data, &sni_len)) {
-        fprintf(stderr, "SNI extension present, len=%zu\n", sni_len);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "SNI extension present, len=%zu", sni_len);
     } else {
-        fprintf(stderr, "SNI extension NOT present\n");
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "SNI extension NOT present");
     }
 
     // 4. 取得 EllipticCurves (extension 10)
@@ -209,7 +209,7 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
             }
         }
     }
-    fprintf(stderr, "EllipticCurves: %s\n", curves_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "EllipticCurves: %s", curves_str);
 
     // 5. 取得 ECPointFormats (extension 11)
     char point_formats_str[512] = {0};
@@ -234,22 +234,25 @@ static int ngx_http_ja3_client_hello_cb(SSL *ssl, int *al, void *arg)
             }
         }
     }
-    fprintf(stderr, "ECPointFormats: %s\n", point_formats_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ECPointFormats: %s", point_formats_str);
 
     // 6. 組合 JA3 字串
     snprintf(ja3, sizeof(ja3), "%s,%s,%s,%s,%s", 
             version_str, cipher_str, ext_str, curves_str, point_formats_str);
     /* log JA3 string only */
-    fprintf(stderr,"[JA3] %s\n", ja3);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[JA3] %s", ja3);
 
     return SSL_CLIENT_HELLO_SUCCESS;
 }
 
-static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf)
+static ngx_int_t ngx_ja3_init(ngx_conf_t *cf)
 {
     // 1. 取得 HTTP 主設定（裡面有所有 server block）
     ngx_http_core_main_conf_t *cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
     if (!cmcf) return NGX_ERROR; // 沒有主設定就結束
+
+    /* 測試 log 是否能寫入 error.log */
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "[JA3] ngx_ja3_init called");
 
     // 2. 取得所有 server block 的陣列
     ngx_http_core_srv_conf_t **servers = cmcf->servers.elts;
@@ -264,7 +267,7 @@ static ngx_int_t ngx_http_ja3_init(ngx_conf_t *cf)
 
         // 5. 如果有啟用 SSL，註冊 ClientHello callback
         if (ssl_conf && ssl_conf->ssl.ctx) {
-            SSL_CTX_set_client_hello_cb(ssl_conf->ssl.ctx, ngx_http_ja3_client_hello_cb, NULL);
+            SSL_CTX_set_client_hello_cb(ssl_conf->ssl.ctx, ngx_ja3_client_hello_cb, NULL);
         }
     }
     return NGX_OK;
