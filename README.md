@@ -41,21 +41,25 @@
 ---
 ## Quick Start
 ```
+git clone https://github.com/Hung-Jia-Jun/nginx-ja3-fingerprint.git
+cd nginx-ja3-fingerprint
 apt update
-apt install libpcre3 libpcre3-dev libssl-dev  zlib1g-dev
+apt install -y libpcre3 libpcre3-dev libssl-dev zlib1g-dev wget cmake
 wget https://openresty.org/download/openresty-1.27.1.2.tar.gz
 tar -xf openresty-1.27.1.2.tar.gz
 cd openresty-1.27.1.2
 ./configure \
   --with-http_ssl_module \
+  --with-http_v2_module \
   --with-debug \
   --add-dynamic-module=../nginx_ja3_module
 make && make install
-openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/dummy.key -out /tmp/dummy.crt -days 365
+openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/dummy.key -out /tmp/dummy.crt -days 365 -subj "/CN=localhost"
 cd ..
+mkdir -p /var/log/nginx
 cp nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 /usr/local/openresty/nginx/sbin/nginx -t
-/usr/local/openresty/nginx/sbin/nginx
+/usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
 ```
 
 
